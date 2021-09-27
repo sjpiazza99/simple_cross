@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 #include <regex>
+#include <algorithm>
 #include "boost/lexical_cast.hpp"
-#include <queue>
 
 typedef std::list<std::string> results_t;
 
@@ -54,4 +54,7 @@ class SimpleCross
   public:
     request_t handle_request(const std::string& line);
     results_t action(const std::string& line); 
+    results_t print_orders(); 
+    void erase_order(order_t order); 
+    void handle_cross(request_t rq); 
 };

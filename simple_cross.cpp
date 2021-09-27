@@ -16,50 +16,72 @@ results_t SimpleCross::action(const std::string& line){
   }
 
   //Perform action requested
-  if(rq.action == 'P'){ //O(nlogn)
-    std::vector<order_t> sorted_orders;
-    for(auto symbol_book : order_book_m){
-      sorted_orders = symbol_book.second['B'];
-      sorted_orders.insert(sorted_orders.end(), symbol_book.second['S'].begin(), symbol_book.second['S'].end());
-      std::sort(sorted_orders.begin(), sorted_orders.end(), SortedOrder());
-      for(auto order : sorted_orders){
-        res.push_back(
-            "P " + std::to_string(order.oid) + " " + order.symbol + " " + 
-            order.side + " " + std::to_string(order.open_qty - order.fill_qty) + 
-            " " + std::to_string(order.ord_px)
-        );
-      } 
-    }
-    return res;
+  switch(rq.action){
+    case 'P':
+      res = print_orders();
+      break;
+
+    case 'X':
+      //Check if oid exists
+      if(oids_m.count(rq.oid) == 0){
+        res.push_back("E "+ std::to_string(rq.oid) + " OID does not exist");
+        break;
+      }
+      erase_order(oids_m[rq.oid]);
+      res.push_back("X "+ std::to_string(rq.oid));
+      break;
+
+    case 'O':
+      //Check if oid already exists
+      if(oids_m.count(rq.oid)){
+        res.push_back("E " + std::to_string(rq.oid) + " Duplicate order id");
+        break;
+      }
+      handle_cross(rq);
   }
-  if(rq.action == 'X'){ //Maybe i can do O(logn) ~ OR O(1) if u keep indexes;
-    if(oids_m.count(rq.oid) == 0){
-      res.push_back("E "+ std::to_string(rq.oid) + " OID does not exist");
-      return res;
-    }
-    //auto order = oids_m[rq.oid];
-    //auto order_queue = order_book_m[order.symbol][order.side];
-    //order_queue.erase(std::find(order_queue.begin(), order_queue.end(), order));
-    oids_m.erase(rq.oid);
-    res.push_back("X "+ std::to_string(rq.oid));
-    return res;
-  }
-  //O(logn)
-  //Check if oid already exists
-  if(oids_m.count(rq.oid)){
-    res.push_back("E " + std::to_string(rq.oid) + " Duplicate order id");
-    return res;
-  }
+  return res;
+}
+
+//O(logn)
+void SimpleCross::handle_cross(request_t rq){
   oids_m[rq.oid] = {0, rq.qty, 0, rq.px, rq.oid, rq.symbol, rq.side};
   auto order_heap = order_book_m[rq.symbol][rq.side];
   order_heap.push_back(oids_m[rq.oid]);
   std::push_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
   order_book_m[rq.symbol][rq.side] = order_heap;
   //res.push_back(std::to_string(rq.oid));
-
-  return res; 
 }
 
+//O(nlogn) - not sure how optimized this needs to be
+results_t SimpleCross::print_orders(){
+  results_t res;
+  std::vector<order_t> sorted_orders;
+  for(auto symbol_book : order_book_m){
+    sorted_orders = symbol_book.second['B'];
+    sorted_orders.insert(sorted_orders.end(), symbol_book.second['S'].begin(), symbol_book.second['S'].end());
+    std::sort(sorted_orders.begin(), sorted_orders.end(), SortedOrder());
+    for(auto order : sorted_orders){
+      res.push_back(
+        "P " + std::to_string(order.oid) + " " + order.symbol + " " + 
+        order.side + " " + std::to_string(order.open_qty - order.fill_qty) + 
+        " " + std::to_string(order.ord_px)
+      );
+    } 
+  }
+  return res;
+}
+
+//Maybe i can do O(logn) ~ OR O(1) if u keep indexes;
+void SimpleCross::erase_order(order_t order){
+  auto order_heap = order_book_m[order.symbol][order.side];
+  auto tmp = order.oid;
+  auto it = find_if(order_heap.begin(), order_heap.end(), [&tmp](const order_t& obj) {return obj.oid == tmp;});
+  order_heap.erase(it);
+  order_book_m[order.symbol][order.side] = order_heap;
+  oids_m.erase(order.oid);
+}
+
+//Robust error handling, obviously could be optimized at the cost of generic messages
 request_t SimpleCross::handle_request(const std::string& line){
   if(line == "")
     throw std::invalid_argument("E Missing arguments");
