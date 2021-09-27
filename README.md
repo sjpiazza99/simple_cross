@@ -2,13 +2,13 @@ SimpleCross - a process that matches internal orders
 
 Overview:
     * Accept/remove orders as they are entered and keep a book of
-      resting orders  *HASHMAP*
+      resting orders
     * Determine if an accepted order would be satisfied by previously
       accepted orders (i.e. a buy would cross a resting sell)
     * Output (print) crossing events and remove completed (fully filled)
       orders from the book
 
-Inputs: *REGEX FOR THESE*
+Inputs:
     A string of space separated values representing an action.  The number of
     values is determined by the action to be performed and have the following
     format:
@@ -31,9 +31,6 @@ Inputs: *REGEX FOR THESE*
     QTY: positive 16-bit integer value
 
     PX: positive double precision value (7.5 format)
-
-map[symbols][bids][ORDID] => model it after crypto exchanges (some struct)
-map[symbols][asks][ORDID] =>
 
     FILL_QTY: positive 16-bit integer value representing qty of the order filled by
               this crossing event
