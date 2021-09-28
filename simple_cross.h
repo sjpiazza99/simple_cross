@@ -33,7 +33,7 @@ typedef struct Request
 struct PriceTimeOrder {
   bool operator()(order_t const& ord1, order_t const& ord2)
   {
-      return ord1.ord_px > ord2.ord_px;
+      return ord1.ord_px <= ord2.ord_px;
   }
 };
 
@@ -51,10 +51,10 @@ class SimpleCross
     //map[symbol][side] = vector<order_t> (max heap / priority queue for price-time fifo)
     std::map<unsigned int, order_t> oids_m;
     //map[oid] = order_t (needed to parse order book)
-  public:
-    request_t handle_request(const std::string& line);
-    results_t action(const std::string& line); 
     results_t print_orders(); 
     void erase_order(order_t order); 
-    void handle_cross(request_t rq); 
+    results_t handle_cross(request_t rq); 
+    request_t handle_request(const std::string& line);
+  public:
+    results_t action(const std::string& line); 
 };
