@@ -50,28 +50,38 @@ results_t SimpleCross::handle_cross(request_t rq){
   std::push_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
   std::cout<< std::to_string(order_heap.front().oid) << " | ";
   
+  //Ensure book holds orders for cross side
   if(order_book_m[rq.symbol].count(op_side) == 0){
     std::cout << "okkk....\n";
     order_book_m[rq.symbol][rq.side] = order_heap;
     return res;
   }
-  std::cout<< std::to_string(order_book_m[rq.symbol][op_side].front().oid) << '\n';
-  //lets hit that fill
-  /*
-  unsigned short tmp_qty;
-  if(rq.side == 'B' && order_heap.front().ord_px >= order_book_m[rq.symbol][op_side].front().px){
-    
-    order_book_m[rq.symbol][op_side].fill_qty += order_heap.front().ord_qty - order_heap.front().fill_qty;
-    order_heap.front().fill_qty += 
+  order_t* sames_ord = &order_heap.front();
+  order_t* cross_ord = &order_book_m[rq.symbol][op_side].front();
+  //lets try to hit sum fill
+  if(sames_ord->side == 'B' && sames_ord->ord_px >= cross_ord->ord_px){    
+    cross_ord->fill_qty += sames_ord->open_qty - sames_ord->fill_qty;
+    sames_ord->fill_qty = sames_ord->open_qty;//change 
   }
-  else if(rq.side == 'S' && order_heap.front().ord_px <= order_book_m[rq.symbol][op_side].front().px){
-  //res.push_back(std::to_string(rq.oid));
-  */
+  else if(sames_ord->side == 'S' && sames_ord->ord_px <= cross_ord->ord_px){
+    cross_ord->fill_qty += sames_ord->open_qty - sames_ord->fill_qty;
+    sames_ord->fill_qty = sames_ord->open_qty;//change 
+  }
+  
+  //Check if full fill
+  if(cross_ord->fill_qty == cross_ord->open_qty){
+    res.push_back("F " + std::to_string(cross_ord->oid));
+    erase_order(*cross_ord);
+  }
+  if(sames_ord->fill_qty == sames_ord->open_qty){
+    res.push_back("F " + std::to_string(sames_ord->oid));
+    erase_order(*sames_ord);
+  }
   order_book_m[rq.symbol][rq.side] = order_heap;
   return res;
 }
 
-//O(nlogn) - not sure how optimized this needs to be
+//O(mnlogn) - not sure how optimized this needs to be
 results_t SimpleCross::print_orders(){
   results_t res;
   std::vector<order_t> sorted_orders;
@@ -98,7 +108,7 @@ void SimpleCross::erase_order(order_t order){
   order_heap.erase(it);
   std::make_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder()); //need to heapify again
   order_book_m[order.symbol][order.side] = order_heap;
-  oids_m.erase(order.oid);
+  oids_m.erase(order.oid);//TODO maybe comment this out such that oids are unique across run (better for logging n such).
 }
 
 //Robust error handling, obviously could be optimized at the cost of generic messages
