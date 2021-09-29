@@ -53,7 +53,7 @@ results_t SimpleCross::handle_cross(request_t rq){
   auto& order_heap = order_book_m[rq.symbol][rq.side];
   *oids_m[rq.oid] = {
     0, rq.qty, 0, rq.px, rq.oid, 
-    rq.symbol, rq.side, static_cast<int>(order_heap.size())
+    rq.symbol, rq.side, static_cast<unsigned int>(order_heap.size())
   };
   order_heap.push_back(oids_m[rq.oid]);
   std::push_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());

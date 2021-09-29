@@ -18,7 +18,7 @@ typedef struct Order
   unsigned int oid;
   std::string symbol;
   char side;
-  int idx;
+  unsigned int idx;
 } order_t;
 
 typedef struct Request
@@ -59,9 +59,9 @@ struct SortedOrder {
 class SimpleCross
 {
   private:
-    std::map<std::string, std::map<char, std::vector<std::shared_ptr<order_t>>>> order_book_m; 
+    std::unordered_map<std::string, std::unordered_map<char, std::vector<std::shared_ptr<order_t>>>> order_book_m; 
     //map[symbol][side] = vector<order_t> (max heap / priority queue for price-time fifo)
-    std::map<unsigned int, std::shared_ptr<order_t>> oids_m;
+    std::unordered_map<unsigned int, std::shared_ptr<order_t>> oids_m;
     //map[oid] = order_t (needed to parse order book)
     results_t print_orders(); 
     void print_heap(); 
