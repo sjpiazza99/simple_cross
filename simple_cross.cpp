@@ -55,11 +55,11 @@ results_t SimpleCross::handle_cross(request_t rq){
     0, rq.qty, 0, rq.px, rq.oid, 
     rq.symbol, rq.side, static_cast<int>(order_heap.size())
   };
-  char op_side = rq.side == 'B' ? 'S' : 'B';
   order_heap.push_back(oids_m[rq.oid]);
   std::push_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
   
   //Ensure book holds orders for cross side
+  char op_side = rq.side == 'B' ? 'S' : 'B';
   if(order_book_m[rq.symbol].count(op_side) == 0)
     return res;
   

@@ -45,7 +45,7 @@ struct PriceTimeOrder {
       std::swap(ord1->idx, ord2->idx);
       return true;
     }
-    return ord1->ord_px > ord2->ord_px;
+    return false;
   }
 };
 
