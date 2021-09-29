@@ -33,9 +33,10 @@ typedef struct Request
 struct PriceTimeOrder {
   bool operator()(order_t const& ord1, order_t const& ord2)
   {
+    /*
     if(ord1.ord_px == ord2.ord_px)
       return ord1.oid > ord2.oid;
-
+    */
     if(ord1.side == 'B')
       return ord1.ord_px < ord2.ord_px;
     return ord1.ord_px > ord2.ord_px;
