@@ -1,6 +1,3 @@
-// Stub implementation and example driver for SimpleCross.
-// Your crossing logic should be accesible from the SimpleCross class.
-// Other than the signature of SimpleCross::action() you are free to modify as needed.
 #include "simple_cross.h"
 
 results_t SimpleCross::action(const std::string& line){ 
@@ -23,12 +20,11 @@ results_t SimpleCross::action(const std::string& line){
     case 'X':
       //Check if oid exists
       if(oids_m[rq.oid] == nullptr){
-        res.push_back("E "+ std::to_string(rq.oid) + " OID does not exist");
+        res.push_back("E "+ std::to_string(rq.oid) + " Order id is not in the order book");
         break;
       }
       erase_order(oids_m[rq.oid]);
       res.push_back("X "+ std::to_string(rq.oid));
-      //print_heap();
       break;
     case 'O':
       //Check if oid has been used
@@ -37,7 +33,6 @@ results_t SimpleCross::action(const std::string& line){
         break;
       }
       res = handle_cross(rq);
-      //print_heap();
   }
   return res;
 }
@@ -45,6 +40,7 @@ results_t SimpleCross::action(const std::string& line){
 //O(logn)
 results_t SimpleCross::handle_cross(request_t rq){
   results_t res;
+  //Create new order
   used_oids_m[rq.oid] = true;
   oids_m[rq.oid] = std::shared_ptr<order_t>(new Order());
   auto& order_heap = order_book_m[rq.symbol][rq.side];
@@ -104,42 +100,13 @@ results_t SimpleCross::handle_cross(request_t rq){
   }
   
   //Check if full fill
-  if(cross_ord->open_qty == 0){
-    std::pop_heap(cross_heap.begin(), cross_heap.end(), PriceTimeOrder());
-    cross_heap.pop_back();
-  }
-  if(sames_ord->open_qty == 0){
-    std::pop_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
-    order_heap.pop_back();
-  }
+  if(cross_ord->open_qty == 0)
+    erase_order(cross_ord);
+  if(sames_ord->open_qty == 0)
+    erase_order(sames_ord);
+
   return res;
 }
-
-/*
-void SimpleCross::print_heap(){
-  std::vector<std::shared_ptr<order_t>> sorted_orders;
-  std::cout << "---------------\n";
-  for(auto symbol_book : order_book_m){
-    sorted_orders = symbol_book.second['B'];
-    for(auto order : sorted_orders){
-      std::cout <<
-        "P " + std::to_string(order->oid) + " " + order->symbol + " " + 
-        order->side + " " + std::to_string(order->open_qty) + 
-        " " + std::to_string(order->ord_px)
-      << '\n';
-    } 
-    sorted_orders = symbol_book.second['S'];
-    for(auto order : sorted_orders){
-      std::cout <<
-        "P " + std::to_string(order->oid) + " " + order->symbol + " " + 
-        order->side + " " + std::to_string(order->open_qty) + 
-        " " + std::to_string(order->ord_px)
-      << '\n';
-    } 
-  }
-  std::cout << "---------------\n";
-}
-*/
 
 //O(mnlogn) - not sure how optimized this needs to be
 results_t SimpleCross::print_orders(){

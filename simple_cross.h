@@ -64,9 +64,10 @@ class SimpleCross
     std::unordered_map<unsigned int, std::shared_ptr<order_t>> oids_m;
     //map[oid] = order_t (needed to parse order book)
     std::unordered_map<unsigned int, bool> used_oids_m;
+    //O(1) lookup for used oids
     results_t print_orders(); 
-    void print_heap(); 
     void erase_order(std::shared_ptr<order_t> order); 
+    void erase_top(std::shared_ptr<order_t> order); 
     results_t handle_cross(request_t rq); 
     request_t handle_request(const std::string& line);
   public:
