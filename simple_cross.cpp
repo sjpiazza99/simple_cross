@@ -168,7 +168,17 @@ void SimpleCross::erase_order(order_t order){
   std::make_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder()); //need to heapify again
 }
 
-//Robust error handling, obviously could be optimized at the cost of generic messages
+/*
+ * Parse string as request_t struct
+ *
+ * Robust error handling for reading requests from actions.txt. 
+ * This could be done with a single regex, however, it would be at the 
+ * expense of a single generic error message. Rather than that I've
+ * prioritized being explicit.
+ *
+ * @param line the string that should be parsed
+ * @return request_t struct describing the request made
+*/
 request_t SimpleCross::handle_request(const std::string& line){
   if(line == "")
     throw std::invalid_argument("E Missing arguments");
