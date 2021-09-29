@@ -101,10 +101,9 @@ results_t SimpleCross::handle_cross(request_t rq){
   
   //Check if full fill
   if(cross_ord->open_qty == 0)
-    erase_order(cross_ord);
+    erase_top(cross_ord);
   if(sames_ord->open_qty == 0)
-    erase_order(sames_ord);
-
+    erase_top(sames_ord);
   return res;
 }
 
@@ -127,6 +126,13 @@ results_t SimpleCross::print_orders(){
   return res;
 }
 
+
+void SimpleCross::erase_top(std::shared_ptr<order_t> order){
+  auto& order_heap = order_book_m[order->symbol][order->side];
+  std::pop_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
+  order_heap.pop_back();
+  oids_m.erase(order->oid);
+}
 //O(logn)
 void SimpleCross::erase_order(std::shared_ptr<order_t> order){
   auto& order_heap = order_book_m[order->symbol][order->side];
