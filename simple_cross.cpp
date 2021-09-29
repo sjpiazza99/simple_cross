@@ -26,17 +26,13 @@ results_t SimpleCross::action(const std::string& line){
         res.push_back("E "+ std::to_string(rq.oid) + " OID does not exist");
         break;
       }
-      if(oids_m[rq.oid]->open_qty == 0){
-        res.push_back("E " + std::to_string(rq.oid) + " Order already fully filled");
-        break;
-      }
-      erase_order(*oids_m[rq.oid]);
+      erase_order(oids_m[rq.oid]);
       res.push_back("X "+ std::to_string(rq.oid));
       //print_heap();
       break;
     case 'O':
-      //Check if oid already exists
-      if(oids_m[rq.oid] != nullptr){
+      //Check if oid has been used
+      if(used_oids_m[rq.oid]){
         res.push_back("E " + std::to_string(rq.oid) + " Duplicate order id");
         break;
       }
@@ -49,6 +45,7 @@ results_t SimpleCross::action(const std::string& line){
 //O(logn)
 results_t SimpleCross::handle_cross(request_t rq){
   results_t res;
+  used_oids_m[rq.oid] = true;
   oids_m[rq.oid] = std::shared_ptr<order_t>(new Order());
   auto& order_heap = order_book_m[rq.symbol][rq.side];
   *oids_m[rq.oid] = {
@@ -61,6 +58,8 @@ results_t SimpleCross::handle_cross(request_t rq){
   //Ensure book holds orders for cross side
   char op_side = rq.side == 'B' ? 'S' : 'B';
   if(order_book_m[rq.symbol].count(op_side) == 0)
+    return res;
+  if(order_book_m[rq.symbol][op_side].size() == 0)
     return res;
   
   auto& cross_heap = order_book_m[rq.symbol][op_side];
@@ -118,23 +117,23 @@ results_t SimpleCross::handle_cross(request_t rq){
 
 /*
 void SimpleCross::print_heap(){
-  std::vector<order_t> sorted_orders;
+  std::vector<std::shared_ptr<order_t>> sorted_orders;
   std::cout << "---------------\n";
   for(auto symbol_book : order_book_m){
     sorted_orders = symbol_book.second['B'];
     for(auto order : sorted_orders){
       std::cout <<
-        "P " + std::to_string(order.oid) + " " + order.symbol + " " + 
-        order.side + " " + std::to_string(order.open_qty) + 
-        " " + std::to_string(order.ord_px)
+        "P " + std::to_string(order->oid) + " " + order->symbol + " " + 
+        order->side + " " + std::to_string(order->open_qty) + 
+        " " + std::to_string(order->ord_px)
       << '\n';
     } 
     sorted_orders = symbol_book.second['S'];
     for(auto order : sorted_orders){
       std::cout <<
-        "P " + std::to_string(order.oid) + " " + order.symbol + " " + 
-        order.side + " " + std::to_string(order.open_qty) + 
-        " " + std::to_string(order.ord_px)
+        "P " + std::to_string(order->oid) + " " + order->symbol + " " + 
+        order->side + " " + std::to_string(order->open_qty) + 
+        " " + std::to_string(order->ord_px)
       << '\n';
     } 
   }
@@ -162,10 +161,11 @@ results_t SimpleCross::print_orders(){
 }
 
 //O(logn)
-void SimpleCross::erase_order(order_t order){
-  auto& order_heap = order_book_m[order.symbol][order.side];
-  order_heap.erase(order_heap.begin()+order.idx);
+void SimpleCross::erase_order(std::shared_ptr<order_t> order){
+  auto& order_heap = order_book_m[order->symbol][order->side];
+  order_heap.erase(order_heap.begin()+order->idx);
   std::make_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder()); //need to heapify again
+  oids_m.erase(order->oid);
 }
 
 /*
