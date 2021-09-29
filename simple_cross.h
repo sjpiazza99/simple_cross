@@ -33,14 +33,19 @@ typedef struct Request
 struct PriceTimeOrder {
   bool operator()(order_t const& ord1, order_t const& ord2)
   {
-      return ord1.ord_px <= ord2.ord_px;
+    if(ord1.ord_px == ord2.ord_px)
+      return ord1.oid > ord2.oid;
+
+    if(ord1.side == 'B')
+      return ord1.ord_px < ord2.ord_px;
+    return ord1.ord_px > ord2.ord_px;
   }
 };
 
 struct SortedOrder {
   bool operator()(order_t const& ord1, order_t const& ord2)
   {
-      return ord1.ord_px >= ord2.ord_px;
+    return ord1.ord_px >= ord2.ord_px;
   }
 };
 
@@ -52,6 +57,7 @@ class SimpleCross
     std::map<unsigned int, order_t> oids_m;
     //map[oid] = order_t (needed to parse order book)
     results_t print_orders(); 
+    void print_heap(); 
     void erase_order(order_t order); 
     results_t handle_cross(request_t rq); 
     request_t handle_request(const std::string& line);

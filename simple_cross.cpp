@@ -28,6 +28,7 @@ results_t SimpleCross::action(const std::string& line){
       }
       erase_order(oids_m[rq.oid]);
       res.push_back("X "+ std::to_string(rq.oid));
+      //print_heap();
       break;
     case 'O':
       //Check if oid already exists
@@ -36,6 +37,7 @@ results_t SimpleCross::action(const std::string& line){
         break;
       }
       res = handle_cross(rq);
+      //print_heap();
   }
   return res;
 }
@@ -44,42 +46,92 @@ results_t SimpleCross::action(const std::string& line){
 results_t SimpleCross::handle_cross(request_t rq){
   results_t res;
   oids_m[rq.oid] = {0, rq.qty, 0, rq.px, rq.oid, rq.symbol, rq.side};
-  auto order_heap = order_book_m[rq.symbol][rq.side];
+  auto& order_heap = order_book_m[rq.symbol][rq.side];
   char op_side = rq.side == 'B' ? 'S' : 'B';
   order_heap.push_back(oids_m[rq.oid]);
   std::push_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
-  std::cout<< std::to_string(order_heap.front().oid) << " | ";
   
   //Ensure book holds orders for cross side
-  if(order_book_m[rq.symbol].count(op_side) == 0){
-    std::cout << "okkk....\n";
-    order_book_m[rq.symbol][rq.side] = order_heap;
+  if(order_book_m[rq.symbol].count(op_side) == 0)
     return res;
-  }
+  
+  auto& cross_heap = order_book_m[rq.symbol][op_side];
   order_t* sames_ord = &order_heap.front();
-  order_t* cross_ord = &order_book_m[rq.symbol][op_side].front();
-  //lets try to hit sum fill
-  if(sames_ord->side == 'B' && sames_ord->ord_px >= cross_ord->ord_px){    
-    cross_ord->fill_qty += sames_ord->open_qty - sames_ord->fill_qty;
-    sames_ord->fill_qty = sames_ord->open_qty;//change 
-  }
-  else if(sames_ord->side == 'S' && sames_ord->ord_px <= cross_ord->ord_px){
-    cross_ord->fill_qty += sames_ord->open_qty - sames_ord->fill_qty;
-    sames_ord->fill_qty = sames_ord->open_qty;//change 
+  order_t* cross_ord = &cross_heap.front();
+  
+  //lets try to hit sum fill TODO fill_px
+  if((sames_ord->side == 'B' && sames_ord->ord_px >= cross_ord->ord_px) ||
+     (sames_ord->side == 'S' && sames_ord->ord_px <= cross_ord->ord_px)){    
+    if(cross_ord->open_qty >= sames_ord->open_qty){
+      cross_ord->fill_qty = sames_ord->open_qty;
+      cross_ord->open_qty -= sames_ord->open_qty;
+      sames_ord->fill_qty = sames_ord->open_qty;
+      sames_ord->open_qty = 0;
+    }
+    else{
+      sames_ord->fill_qty = cross_ord->open_qty;
+      sames_ord->open_qty -= cross_ord->open_qty;
+      cross_ord->fill_qty = cross_ord->open_qty;
+      cross_ord->open_qty = 0;
+    }
+    if(sames_ord->side == 'B'){//possibly buying at lower price
+      sames_ord->fill_px = cross_ord->ord_px;
+      cross_ord->fill_px = cross_ord->ord_px;
+    }
+    else{//cross may be buying at lower price
+      sames_ord->fill_px = sames_ord->ord_px;
+      cross_ord->fill_px = sames_ord->ord_px;
+    }
+    res.push_back(
+      "F " + std::to_string(sames_ord->oid) +
+      " " + sames_ord->symbol +
+      " " + std::to_string(sames_ord->fill_qty) +
+      " " + std::to_string(sames_ord->fill_px)
+    );
+    res.push_back(
+      "F " + std::to_string(cross_ord->oid) +
+      " " + cross_ord->symbol +
+      " " + std::to_string(cross_ord->fill_qty) +
+      " " + std::to_string(cross_ord->fill_px)
+    );
   }
   
   //Check if full fill
-  if(cross_ord->fill_qty == cross_ord->open_qty){
-    res.push_back("F " + std::to_string(cross_ord->oid));
-    erase_order(*cross_ord);
+  if(cross_ord->open_qty == 0){
+    std::pop_heap(cross_heap.begin(), cross_heap.end(), PriceTimeOrder());
+    cross_heap.pop_back();
   }
-  if(sames_ord->fill_qty == sames_ord->open_qty){
-    res.push_back("F " + std::to_string(sames_ord->oid));
-    erase_order(*sames_ord);
+  if(sames_ord->open_qty == 0){
+    std::pop_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
+    order_heap.pop_back();
   }
-  order_book_m[rq.symbol][rq.side] = order_heap;
   return res;
 }
+
+void SimpleCross::print_heap(){
+  std::vector<order_t> sorted_orders;
+  std::cout << "---------------\n";
+  for(auto symbol_book : order_book_m){
+    sorted_orders = symbol_book.second['B'];
+    for(auto order : sorted_orders){
+      std::cout <<
+        "P " + std::to_string(order.oid) + " " + order.symbol + " " + 
+        order.side + " " + std::to_string(order.open_qty) + 
+        " " + std::to_string(order.ord_px)
+      << '\n';
+    } 
+    sorted_orders = symbol_book.second['S'];
+    for(auto order : sorted_orders){
+      std::cout <<
+        "P " + std::to_string(order.oid) + " " + order.symbol + " " + 
+        order.side + " " + std::to_string(order.open_qty) + 
+        " " + std::to_string(order.ord_px)
+      << '\n';
+    } 
+  }
+  std::cout << "---------------\n";
+}
+
 
 //O(mnlogn) - not sure how optimized this needs to be
 results_t SimpleCross::print_orders(){
@@ -92,7 +144,7 @@ results_t SimpleCross::print_orders(){
     for(auto order : sorted_orders){
       res.push_back(
         "P " + std::to_string(order.oid) + " " + order.symbol + " " + 
-        order.side + " " + std::to_string(order.open_qty - order.fill_qty) + 
+        order.side + " " + std::to_string(order.open_qty) + 
         " " + std::to_string(order.ord_px)
       );
     } 
@@ -102,13 +154,11 @@ results_t SimpleCross::print_orders(){
 
 //O(N) ... O(1) if u keep indexes;
 void SimpleCross::erase_order(order_t order){
-  auto order_heap = order_book_m[order.symbol][order.side];
+  auto& order_heap = order_book_m[order.symbol][order.side];
   auto tmp = order.oid;
   auto it = find_if(order_heap.begin(), order_heap.end(), [&tmp](const order_t& obj) {return obj.oid == tmp;});
   order_heap.erase(it);
   std::make_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder()); //need to heapify again
-  order_book_m[order.symbol][order.side] = order_heap;
-  oids_m.erase(order.oid);//TODO maybe comment this out such that oids are unique across run (better for logging n such).
 }
 
 //Robust error handling, obviously could be optimized at the cost of generic messages
@@ -138,7 +188,7 @@ request_t SimpleCross::handle_request(const std::string& line){
   }
   if(rq.action == 'X')
     return rq;
-  if(!std::regex_match(in[2], std::regex("[A-Z]{1,8}")))
+  if(!std::regex_match(in[2], std::regex("[A-Z0-9]{1,8}")))
     throw std::invalid_argument("E " + in[1] + " Invalid symbol: "+ in[2]);
   rq.symbol = in[2];
   if(!std::regex_match(in[3], std::regex("[BS]")))
