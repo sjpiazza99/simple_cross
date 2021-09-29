@@ -18,6 +18,7 @@ typedef struct Order
   unsigned int oid;
   std::string symbol;
   char side;
+  int idx;
 } order_t;
 
 typedef struct Request
@@ -31,31 +32,36 @@ typedef struct Request
 } request_t;
 
 struct PriceTimeOrder {
-  bool operator()(order_t const& ord1, order_t const& ord2)
+  bool operator()(std::shared_ptr<order_t> ord1, std::shared_ptr<order_t> ord2)
   {
-    /*
-    if(ord1.ord_px == ord2.ord_px)
-      return ord1.oid > ord2.oid;
-    */
-    if(ord1.side == 'B')
-      return ord1.ord_px < ord2.ord_px;
-    return ord1.ord_px > ord2.ord_px;
+    if(ord1->side == 'B'){
+      if(ord1->ord_px < ord2->ord_px){
+        std::swap(ord1->idx, ord2->idx);
+        return true;
+      }
+      return false;
+    }
+    if(ord1->ord_px > ord2->ord_px){
+      std::swap(ord1->idx, ord2->idx);
+      return true;
+    }
+    return ord1->ord_px > ord2->ord_px;
   }
 };
 
 struct SortedOrder {
-  bool operator()(order_t const& ord1, order_t const& ord2)
+  bool operator()(std::shared_ptr<order_t> ord1, std::shared_ptr<order_t> ord2)
   {
-    return ord1.ord_px >= ord2.ord_px;
+    return ord1->ord_px >= ord2->ord_px;
   }
 };
 
 class SimpleCross
 {
   private:
-    std::map<std::string, std::map<char, std::vector<order_t>>> order_book_m; 
+    std::map<std::string, std::map<char, std::vector<std::shared_ptr<order_t>>>> order_book_m; 
     //map[symbol][side] = vector<order_t> (max heap / priority queue for price-time fifo)
-    std::map<unsigned int, order_t> oids_m;
+    std::map<unsigned int, std::shared_ptr<order_t>> oids_m;
     //map[oid] = order_t (needed to parse order book)
     results_t print_orders(); 
     void print_heap(); 
