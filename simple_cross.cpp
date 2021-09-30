@@ -1,5 +1,16 @@
 #include "simple_cross.h"
 
+/*
+ * Execute order request
+ *
+ * Public method for outside applications to pass order requests to.
+ * Essentially, this acts as a main function for the class. Ensuring
+ * order requests are valid and that the request gets processed. Results
+ * are passed back to the caller via the results_t struct.
+ *
+ * @param line - the string that represents the order request from the caller.
+ * @return res - results_t struct describing order book events or errors
+*/
 results_t SimpleCross::action(const std::string& line){ 
   request_t rq;
   results_t res;
@@ -20,7 +31,7 @@ results_t SimpleCross::action(const std::string& line){
     case 'X':
       //Check if oid exists
       if(oids_m[rq.oid] == nullptr){
-        res.push_back("E "+ std::to_string(rq.oid) + " Order id is not in the order book");
+        res.push_back("E "+ std::to_string(rq.oid) + " Order id not in the order book");
         break;
       }
       erase_order(oids_m[rq.oid]);
@@ -42,13 +53,14 @@ results_t SimpleCross::action(const std::string& line){
 }
 
 /*
- * Place new order and check/handle crossing event
+ * Create new order
  *
- * This
+ * This method allocates an order_t struct from the request and
+ * pushes it to the correct order heap.
  *
  * @param rq   - request_t structure describing the order to
  *               be placed in the order book.
- * @return res - list of strings to be printed
+ * @return none
 */
 void SimpleCross::create_order(request_t rq){
   used_oids_m[rq.oid] = true;
@@ -63,17 +75,20 @@ void SimpleCross::create_order(request_t rq){
 }
 
 /*
- * Place new order and check/handle crossing event
+ * Handle crossing events
  *
- * This
+ * Given a symbol's order book, this method checks the tops of both buy and
+ * sell heaps and determines if there is a opportunity to fill. If so, the fill
+ * is executed and the heaps are popped if the orders are entirely filled. On each
+ * order placement ('O' action), this method is called consecutively by SimpleCross::action
+ * until the tops of both heaps are incompatible for a fill.
  *
- * @param rq   - request_t structure describing the order to
- *               be placed in the order book.
- * @return res - list of strings to be printed
+ * @param symbol   - symbol of the order_book to check/execute crossing events
+ * @return res     - results_t struct describing the fills executed.
 */
 results_t SimpleCross::handle_cross(std::string symbol){
   results_t res; 
-  //Ensure book holds orders for cross side
+  //Ensure book holds orders for both sides
   if(order_book_m[symbol].count('B') == 0 || order_book_m[symbol].count('S') == 0)
     return res;
   if(order_book_m[symbol]['B'].size() == 0 || order_book_m[symbol]['S'].size() == 0)
@@ -186,7 +201,7 @@ void SimpleCross::erase_top(std::shared_ptr<order_t> order){
 void SimpleCross::erase_order(std::shared_ptr<order_t> order){
   auto& order_heap = order_book_m[order->symbol][order->side];
   order_heap.erase(order_heap.begin()+order->idx);
-  std::make_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder()); //need to heapify again
+  std::make_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
   oids_m.erase(order->oid);
 }
 
