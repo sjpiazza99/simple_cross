@@ -94,50 +94,50 @@ results_t SimpleCross::handle_cross(std::string symbol){
   if(order_book_m[symbol]['B'].size() == 0 || order_book_m[symbol]['S'].size() == 0)
     return res;
   
-  auto& order_heap = order_book_m[symbol]['B'];
-  auto& cross_heap = order_book_m[symbol]['S'];
-  auto sames_ord = order_heap.front();
-  auto cross_ord = cross_heap.front();
+  auto& buy_heap = order_book_m[symbol]['B'];
+  auto& sell_heap = order_book_m[symbol]['S'];
+  auto buy_ord = buy_heap.front();
+  auto sell_ord = sell_heap.front();
   
   //Ensure there is an opporunity to fill
-  if(sames_ord->ord_px < cross_ord->ord_px)
+  if(buy_ord->ord_px < sell_ord->ord_px)
     return res;
   
-  if(cross_ord->open_qty >= sames_ord->open_qty){
-    cross_ord->fill_qty = sames_ord->open_qty;
-    cross_ord->open_qty -= sames_ord->open_qty;
-    sames_ord->fill_qty = sames_ord->open_qty;
-    sames_ord->open_qty = 0;
+  if(sell_ord->open_qty >= buy_ord->open_qty){
+    sell_ord->fill_qty = buy_ord->open_qty;
+    sell_ord->open_qty -= buy_ord->open_qty;
+    buy_ord->fill_qty = buy_ord->open_qty;
+    buy_ord->open_qty = 0;
   }
   else{
-    sames_ord->fill_qty = cross_ord->open_qty;
-    sames_ord->open_qty -= cross_ord->open_qty;
-    cross_ord->fill_qty = cross_ord->open_qty;
-    cross_ord->open_qty = 0;
+    buy_ord->fill_qty = sell_ord->open_qty;
+    buy_ord->open_qty -= sell_ord->open_qty;
+    sell_ord->fill_qty = sell_ord->open_qty;
+    sell_ord->open_qty = 0;
   }
 
   //possibly buying at lower price
-  sames_ord->fill_px = cross_ord->ord_px;
-  cross_ord->fill_px = cross_ord->ord_px;
+  buy_ord->fill_px = sell_ord->ord_px;
+  sell_ord->fill_px = sell_ord->ord_px;
 
   res.push_back(
-    "F " + std::to_string(cross_ord->oid) +
-    " " + cross_ord->symbol +
-    " " + std::to_string(cross_ord->fill_qty) +
-    " " + std::to_string(cross_ord->fill_px)
+    "F " + std::to_string(sell_ord->oid) +
+    " " + sell_ord->symbol +
+    " " + std::to_string(sell_ord->fill_qty) +
+    " " + std::to_string(sell_ord->fill_px)
   );
   res.push_back(
-    "F " + std::to_string(sames_ord->oid) +
-    " " + sames_ord->symbol +
-    " " + std::to_string(sames_ord->fill_qty) +
-    " " + std::to_string(sames_ord->fill_px)
+    "F " + std::to_string(buy_ord->oid) +
+    " " + buy_ord->symbol +
+    " " + std::to_string(buy_ord->fill_qty) +
+    " " + std::to_string(buy_ord->fill_px)
   );
   
   //Check if full fill
-  if(cross_ord->open_qty == 0)
-    erase_top(cross_ord);
-  if(sames_ord->open_qty == 0)
-    erase_top(sames_ord);
+  if(sell_ord->open_qty == 0)
+    erase_top(sell_ord);
+  if(buy_ord->open_qty == 0)
+    erase_top(buy_ord);
   return res;
 }
 
