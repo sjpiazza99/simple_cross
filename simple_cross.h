@@ -34,13 +34,23 @@ typedef struct Request
 struct PriceTimeOrder {
   bool operator()(std::shared_ptr<order_t> ord1, std::shared_ptr<order_t> ord2)
   {
+    if(ord1->ord_px == ord2->ord_px){
+      //Prioritize lower oid
+      if(ord1->oid > ord2->oid){
+        std::swap(ord1->idx, ord2->idx);
+        return true;
+      }
+      return false;
+    }
     if(ord1->side == 'B'){
+      //Prioritize higher buy price
       if(ord1->ord_px < ord2->ord_px){
         std::swap(ord1->idx, ord2->idx);
         return true;
       }
       return false;
     }
+    //Prioritize lower sell price
     if(ord1->ord_px > ord2->ord_px){
       std::swap(ord1->idx, ord2->idx);
       return true;
@@ -68,7 +78,8 @@ class SimpleCross
     results_t print_orders(); 
     void erase_order(std::shared_ptr<order_t> order); 
     void erase_top(std::shared_ptr<order_t> order); 
-    results_t handle_cross(request_t rq); 
+    void create_order(request_t rq); 
+    results_t handle_cross(std::string symbol); 
     request_t handle_request(const std::string& line);
   public:
     results_t action(const std::string& line); 

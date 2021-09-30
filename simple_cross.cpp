@@ -32,15 +32,25 @@ results_t SimpleCross::action(const std::string& line){
         res.push_back("E " + std::to_string(rq.oid) + " Duplicate order id");
         break;
       }
-      res = handle_cross(rq);
+      create_order(rq);
+      //Loop handle_cross until there are no opportunities left
+      for(results_t res2 = handle_cross(rq.symbol); res2.size() != 0; res2 = handle_cross(rq.symbol)){
+        res.insert(res.end(), res2.begin(), res2.end());
+      }
   }
   return res;
 }
 
-//O(logn)
-results_t SimpleCross::handle_cross(request_t rq){
-  results_t res;
-  //Create new order
+/*
+ * Place new order and check/handle crossing event
+ *
+ * This
+ *
+ * @param rq   - request_t structure describing the order to
+ *               be placed in the order book.
+ * @return res - list of strings to be printed
+*/
+void SimpleCross::create_order(request_t rq){
   used_oids_m[rq.oid] = true;
   oids_m[rq.oid] = std::shared_ptr<order_t>(new Order());
   auto& order_heap = order_book_m[rq.symbol][rq.side];
@@ -49,55 +59,64 @@ results_t SimpleCross::handle_cross(request_t rq){
     rq.symbol, rq.side, static_cast<unsigned int>(order_heap.size())
   };
   order_heap.push_back(oids_m[rq.oid]);
-  std::push_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
-  
+  std::push_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder()); 
+}
+
+/*
+ * Place new order and check/handle crossing event
+ *
+ * This
+ *
+ * @param rq   - request_t structure describing the order to
+ *               be placed in the order book.
+ * @return res - list of strings to be printed
+*/
+results_t SimpleCross::handle_cross(std::string symbol){
+  results_t res; 
   //Ensure book holds orders for cross side
-  char op_side = rq.side == 'B' ? 'S' : 'B';
-  if(order_book_m[rq.symbol].count(op_side) == 0)
+  if(order_book_m[symbol].count('B') == 0 || order_book_m[symbol].count('S') == 0)
     return res;
-  if(order_book_m[rq.symbol][op_side].size() == 0)
+  if(order_book_m[symbol]['B'].size() == 0 || order_book_m[symbol]['S'].size() == 0)
     return res;
   
-  auto& cross_heap = order_book_m[rq.symbol][op_side];
+  auto& order_heap = order_book_m[symbol]['B'];
+  auto& cross_heap = order_book_m[symbol]['S'];
   auto sames_ord = order_heap.front();
   auto cross_ord = cross_heap.front();
   
-  //Look for a fill
-  if((sames_ord->side == 'B' && sames_ord->ord_px >= cross_ord->ord_px) ||
-     (sames_ord->side == 'S' && sames_ord->ord_px <= cross_ord->ord_px)){    
-    if(cross_ord->open_qty >= sames_ord->open_qty){
-      cross_ord->fill_qty = sames_ord->open_qty;
-      cross_ord->open_qty -= sames_ord->open_qty;
-      sames_ord->fill_qty = sames_ord->open_qty;
-      sames_ord->open_qty = 0;
-    }
-    else{
-      sames_ord->fill_qty = cross_ord->open_qty;
-      sames_ord->open_qty -= cross_ord->open_qty;
-      cross_ord->fill_qty = cross_ord->open_qty;
-      cross_ord->open_qty = 0;
-    }
-    if(sames_ord->side == 'B'){//possibly buying at lower price
-      sames_ord->fill_px = cross_ord->ord_px;
-      cross_ord->fill_px = cross_ord->ord_px;
-    }
-    else{//cross may be buying at lower price
-      sames_ord->fill_px = sames_ord->ord_px;
-      cross_ord->fill_px = sames_ord->ord_px;
-    }
-    res.push_back(
-      "F " + std::to_string(sames_ord->oid) +
-      " " + sames_ord->symbol +
-      " " + std::to_string(sames_ord->fill_qty) +
-      " " + std::to_string(sames_ord->fill_px)
-    );
-    res.push_back(
-      "F " + std::to_string(cross_ord->oid) +
-      " " + cross_ord->symbol +
-      " " + std::to_string(cross_ord->fill_qty) +
-      " " + std::to_string(cross_ord->fill_px)
-    );
+  //Ensure there is an opporunity to fill
+  if(sames_ord->ord_px < cross_ord->ord_px)
+    return res;
+  
+  if(cross_ord->open_qty >= sames_ord->open_qty){
+    cross_ord->fill_qty = sames_ord->open_qty;
+    cross_ord->open_qty -= sames_ord->open_qty;
+    sames_ord->fill_qty = sames_ord->open_qty;
+    sames_ord->open_qty = 0;
   }
+  else{
+    sames_ord->fill_qty = cross_ord->open_qty;
+    sames_ord->open_qty -= cross_ord->open_qty;
+    cross_ord->fill_qty = cross_ord->open_qty;
+    cross_ord->open_qty = 0;
+  }
+
+  //possibly buying at lower price
+  sames_ord->fill_px = cross_ord->ord_px;
+  cross_ord->fill_px = cross_ord->ord_px;
+
+  res.push_back(
+    "F " + std::to_string(cross_ord->oid) +
+    " " + cross_ord->symbol +
+    " " + std::to_string(cross_ord->fill_qty) +
+    " " + std::to_string(cross_ord->fill_px)
+  );
+  res.push_back(
+    "F " + std::to_string(sames_ord->oid) +
+    " " + sames_ord->symbol +
+    " " + std::to_string(sames_ord->fill_qty) +
+    " " + std::to_string(sames_ord->fill_px)
+  );
   
   //Check if full fill
   if(cross_ord->open_qty == 0)
@@ -107,7 +126,17 @@ results_t SimpleCross::handle_cross(request_t rq){
   return res;
 }
 
-//O(mnlogn) - not sure how optimized this needs to be
+/*
+ * Print all open orders
+ *
+ * This method prints all the orders still contained
+ * in the order_book_m structure. This spans over all
+ * symbols throughout the book, printing each order sorted
+ * by ORD_PX (greater).
+ *
+ * @param none
+ * @return res - list of strings to be printed 
+*/
 results_t SimpleCross::print_orders(){
   results_t res;
   std::vector<std::shared_ptr<order_t>> sorted_orders;
@@ -127,13 +156,33 @@ results_t SimpleCross::print_orders(){
 }
 
 
+/*
+ * Erase order_heap's root order
+ *
+ * This method deletes the root order from the heap
+ * by using std::pop_heap which keeps the integrity
+ * of the structure.
+ *
+ * @param order - the root of the order_heap that is to be removed
+ * @return none
+*/
 void SimpleCross::erase_top(std::shared_ptr<order_t> order){
   auto& order_heap = order_book_m[order->symbol][order->side];
   std::pop_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
   order_heap.pop_back();
   oids_m.erase(order->oid);
 }
-//O(logn)
+
+/*
+ * Erase order from the order_book
+ *
+ * This method deletes the specified order from the book by 
+ * removing it from the heap using its index. Once the heap
+ * no longer contains the order, the heap gets re-heapified.
+ *
+ * @param order - the order that should be removed
+ * @return none
+*/
 void SimpleCross::erase_order(std::shared_ptr<order_t> order){
   auto& order_heap = order_book_m[order->symbol][order->side];
   order_heap.erase(order_heap.begin()+order->idx);
@@ -149,8 +198,8 @@ void SimpleCross::erase_order(std::shared_ptr<order_t> order){
  * expense of a single generic error message. Rather than that I've
  * prioritized being explicit.
  *
- * @param line the string that should be parsed
- * @return request_t struct describing the request made
+ * @param line - the string that should be parsed
+ * @return rq  - request_t struct describing the request made
 */
 request_t SimpleCross::handle_request(const std::string& line){
   if(line == "")
