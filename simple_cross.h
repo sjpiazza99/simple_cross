@@ -5,6 +5,7 @@
 #include <vector>
 #include <regex>
 #include <algorithm>
+#include <limits>
 #include "boost/lexical_cast.hpp"
 
 typedef std::list<std::string> results_t;
@@ -18,7 +19,6 @@ typedef struct Order
   unsigned int oid;
   std::string symbol;
   char side;
-  unsigned int idx;
 } order_t;
 
 typedef struct Request
@@ -48,28 +48,16 @@ typedef struct Request
 struct PriceTimeOrder {
   bool operator()(std::shared_ptr<order_t> ord1, std::shared_ptr<order_t> ord2)
   {
-    if(ord1->ord_px == ord2->ord_px){
-      //Prioritize lower oid
-      if(ord1->oid > ord2->oid){
-        std::swap(ord1->idx, ord2->idx);
-        return true;
-      }
-      return false;
-    }
-    if(ord1->side == 'B'){
-      //Prioritize higher buy price
-      if(ord1->ord_px < ord2->ord_px){
-        std::swap(ord1->idx, ord2->idx);
-        return true;
-      }
-      return false;
-    }
+    //Prioritize lower oid
+    if(ord1->ord_px == ord2->ord_px)
+      return ord1->oid > ord2->oid;
+
+    //Prioritize higher buy price
+    if(ord1->side == 'B')
+      return ord1->ord_px < ord2->ord_px;
+
     //Prioritize lower sell price
-    if(ord1->ord_px > ord2->ord_px){
-      std::swap(ord1->idx, ord2->idx);
-      return true;
-    }
-    return false;
+    return ord1->ord_px > ord2->ord_px;
   }
 };
 

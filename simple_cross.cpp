@@ -68,7 +68,7 @@ void SimpleCross::create_order(request_t rq){
   auto& order_heap = order_book_m[rq.symbol][rq.side];
   *oids_m[rq.oid] = {
     0, rq.qty, 0, rq.px, rq.oid, 
-    rq.symbol, rq.side, static_cast<unsigned int>(order_heap.size())
+    rq.symbol, rq.side
   };
   order_heap.push_back(oids_m[rq.oid]);
   std::push_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder()); 
@@ -200,8 +200,13 @@ void SimpleCross::erase_top(std::shared_ptr<order_t> order){
 */
 void SimpleCross::erase_order(std::shared_ptr<order_t> order){
   auto& order_heap = order_book_m[order->symbol][order->side];
-  order_heap.erase(order_heap.begin()+order->idx);
+  if(order->side == 'B')
+    order->ord_px = std::numeric_limits<double>::max();
+  else
+    order->ord_px = 0;
   std::make_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
+  std::pop_heap(order_heap.begin(), order_heap.end(), PriceTimeOrder());
+  order_heap.pop_back();
   oids_m.erase(order->oid);
 }
 
