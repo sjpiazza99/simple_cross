@@ -192,8 +192,7 @@ void SimpleCross::erase_top(std::shared_ptr<order_t> order){
  * Erase order from the order_book
  *
  * This method deletes the specified order from the book by 
- * removing it from the heap using its index. Once the heap
- * no longer contains the order, the heap gets re-heapified.
+ * pushing it to the top of heap via modifying its ord_px.
  *
  * @param order - the order that should be removed
  * @return none
